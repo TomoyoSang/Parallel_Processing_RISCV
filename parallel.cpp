@@ -33,13 +33,13 @@ int main()
 		strcpy(Name[36], "AND"); strcpy(Name[37], "ZERO");
 	}
 
-	freopen("pi.data", "r", stdin);
+	//freopen("pi.data", "r", stdin);
 	im.readin();
 	int cnt = 1;
-	//交接结构
+	//陆禄陆脫陆谩鹿鹿
 	pass_oj if_end, id_end, ex_end, ma_end;
 
-	//五级流水
+	//脦氓录露脕梅脣庐
 	while (1)
 	{
 
