@@ -4,6 +4,8 @@
 #include <iostream>
 #include <cstdio>
 #include <cstring>
+#include <vector>
+
 
 using namespace std;
 
@@ -15,7 +17,7 @@ enum Inst_Name {
 
 //hopefully my file will be accepted 
 
-//------------------------数据传输结构体：pass_oj-------------------**
+//------------------数据传输结构体：pass_oj----------------**
 
 class pass_oj
 {
@@ -69,14 +71,9 @@ public:
 
 };
 
-//-----------------------创建一个空指令
-//--------------------读到空指令时，五个步骤应该什么都不做，返回空指令
+//创建一个空指令
+//读到空指令时返回
 
-pass_oj reset()
-{
-	pass_oj zero_status;
-	return zero_status;
-}
 void reset(pass_oj &cleaner)
 {
 	if (!(cleaner.inst_name == ZERO))
@@ -105,7 +102,7 @@ void reset(pass_oj &cleaner)
 }
 
 
-//寄存器 类
+//----------------------寄存器 类-------------------------**
 class TempStorage
 {
 public:
@@ -118,7 +115,7 @@ int PC = 0;
 int counter = 0;
 bool flag = 1;//是否出现退出指令
 
-//内存 类
+//----------------------内存 类---------------------------**
 class InterMem
 {
 public:
@@ -172,9 +169,6 @@ public:
 
 				}
 				Memery[pos] = ins;
-				//cout << pos << " ";
-				//cout << ((Memery[pos] >>7)&1) << ((Memery[pos] >> 6) & 1) << ((Memery[pos] >> 5) & 1) << ((Memery[pos] >> 4) & 1) << ((Memery[pos] >> 3) & 1)
-				//<< ((Memery[pos] >> 2) & 1) << ((Memery[pos] >> 1) & 1)<< ((Memery[pos] ) & 1) << endl;
 				pos++;
 				counter++;
 			}
@@ -190,8 +184,6 @@ public:
 	}
 	~InterMem() {};
 };
-int wait_time = 0;
-
 
 //------------------------通知信息-------------------------**
 class RD_Renew
@@ -291,43 +283,114 @@ void update_changes()
 }
 
 //----------------------------分支预测-------------------------**
-int if_jump = 1;
 
 int Pred_True = 0;
 int Pred_False = 0;
 
+vector <pair<uint8_t, vector<uint8_t>>>history(8200, std::make_pair(0, vector<uint8_t>(16, 0)));
 
-int Guess(int jump, int no_jump)
-{
-	if (if_jump >= 0)return jump;
-	return no_jump;
+int wait_time = 0;
+bool Pred_Ans(int cur_PC)
+{ 
+	bool if_jump = 0;
+	uint32_t tmp = history[cur_PC].first;
+	switch (history[cur_PC].second[history[cur_PC].first])
+	{
+	case 0:case 1:
+	{
+		if_jump = 0;
+		break;
+	}
+	case 2:case 3:
+	{
+		if_jump = 1;
+		break;
+	}
+	default:break;
+	}
+	return if_jump;
 }
 
-void FeedBack(int &if_jump,pass_oj &ex_end,pass_oj &id_end,pass_oj &if_end)
+int Guess(int jump, int no_jump,int cur_PC)
 {
-	if (ex_end.inst_name!=ZERO&&ex_end.Pred_PC != ex_end.Real_PC)
+	return (Pred_Ans(cur_PC))? jump : no_jump;
+}
+
+void FeedBack(pass_oj &ex_end,pass_oj &id_end,pass_oj &if_end)
+{
+	switch (ex_end.inst_name)
 	{
-		Pred_False++;
-		if (ex_end.Pred_PC == ex_end.jump_PC)
-		{
-			PC = ex_end.no_jump_PC;
-		}
-		else if (ex_end.Pred_PC == ex_end.no_jump_PC)
-		{
-			PC = ex_end.jump_PC;
-		}
-		reset(id_end);
-		reset(if_end);
-	}
-	else if(ex_end.inst_name != ZERO)
+	case BEQ:case BNE:case BLT:case BGE:case BLTU:case BGEU:
 	{
-		Pred_True++;
+		if (ex_end.Pred_PC != ex_end.Real_PC)
+		{
+			Pred_False++;
+			if (ex_end.Pred_PC == ex_end.jump_PC)
+			{
+				PC = ex_end.no_jump_PC;
+				uint8_t tmp1 = history[ex_end.cur_PC].first,tmp2= history[ex_end.cur_PC].second[tmp1];
+				switch (tmp2)
+				{
+				case 2:tmp2 = 1; break;
+				case 3:tmp2 = 2; break;
+				}
+				history[ex_end.cur_PC].second[tmp1] = tmp2;
+				tmp1 = ((tmp1 << 1) & 0b1111);
+				history[ex_end.cur_PC].first = tmp1;
+			}
+			else if (ex_end.Pred_PC == ex_end.no_jump_PC)
+			{
+				PC = ex_end.jump_PC;
+				uint8_t tmp1 = history[ex_end.cur_PC].first, tmp2 = history[ex_end.cur_PC].second[tmp1];
+				switch (tmp2)
+				{
+				case 0:tmp2 = 1; break;
+				case 1:tmp2 = 2; break;
+				}
+				history[ex_end.cur_PC].second[tmp1] = tmp2;
+				tmp1 = ((tmp1 << 1) & 0b1111) + 1;
+				history[ex_end.cur_PC].first = tmp1;
+			}
+			reset(id_end);
+			reset(if_end);
+		}
+		else
+		{
+			Pred_True++;
+			if (ex_end.Pred_PC == ex_end.jump_PC)
+			{
+				uint8_t tmp1 = history[ex_end.cur_PC].first, tmp2 = history[ex_end.cur_PC].second[tmp1];
+				switch (tmp2)
+				{
+				case 2:tmp2 = 3; break;
+				case 3:tmp2 = 3; break;
+				}
+				history[ex_end.cur_PC].second[tmp1] = tmp2;
+				tmp1 = ((tmp1 << 1) & 0b1111) + 1;
+				history[ex_end.cur_PC].first = tmp1;
+			}
+			else if (ex_end.Pred_PC == ex_end.no_jump_PC)
+			{
+				uint8_t tmp1 = history[ex_end.cur_PC].first, tmp2 = history[ex_end.cur_PC].second[tmp1];
+				switch (tmp2)
+				{
+				case 0:tmp2 = 0; break;
+				case 1:tmp2 = 0; break;
+				}
+				history[ex_end.cur_PC].second[tmp1] = tmp2;
+				tmp1 = ((tmp1 << 1) & 0b1111);
+				history[ex_end.cur_PC].first = tmp1;
+			}
+		}
+		break;
 	}
+	default:break;
+	}
+	
 	return;
 }
 
-
-//----------------------------符号扩展函数-------------------------**
+//----------------------------------符号扩展函数-------------------------------**
 int SignExtended(int data, int bits)//bits表示实际位数而非0-base
 {
 	if (data&(1 << (bits - 1)))
@@ -336,7 +399,6 @@ int SignExtended(int data, int bits)//bits表示实际位数而非0-base
 	}
 	return data;
 }
-
 //-------------------------------   Write_Back   过程------------------------**
 class Write_Back
 {
@@ -366,7 +428,6 @@ public:
 		}
 		case BEQ:case BNE:case BLT:case BGE:case BLTU:case BGEU:
 		{
-			PC = WB_end.result;
 			break;
 		}
 		case LB:case LH:case LW:case LBU:case LHU:
@@ -382,7 +443,6 @@ public:
 		return;
 	}
 };
-
 //-------------------------------  Memory_Access 过程------------------------**
 class Memory_Access
 {
@@ -476,7 +536,6 @@ public:
 	}
 
 };
-
 //-------------------------------    Execution   过程------------------------**
 class Execution
 {
@@ -560,6 +619,7 @@ public:
 		{
 			execution_end.result = (execution_end.rs1_value == execution_end.rs2_value) ?
 				(execution_end.jump_PC) : (execution_end.no_jump_PC);
+			execution_end.Real_PC = execution_end.result;
 			Initial(EX_Forward);
 			break;
 		}
@@ -567,6 +627,7 @@ public:
 		{
 			execution_end.result = (execution_end.rs1_value == execution_end.rs2_value) ?
 				(execution_end.no_jump_PC) : (execution_end.jump_PC);
+			execution_end.Real_PC = execution_end.result;
 			Initial(EX_Forward);
 			break;
 		}
@@ -574,6 +635,7 @@ public:
 		{
 			execution_end.result = (execution_end.rs1_value < execution_end.rs2_value) ? 
 				(execution_end.jump_PC) : (execution_end.no_jump_PC);
+			execution_end.Real_PC = execution_end.result;
 			Initial(EX_Forward);
 			break;
 		}
@@ -581,6 +643,7 @@ public:
 		{
 			execution_end.result = (execution_end.rs1_value >= execution_end.rs2_value) ? 
 				(execution_end.jump_PC) : (execution_end.no_jump_PC);
+			execution_end.Real_PC = execution_end.result;
 			Initial(EX_Forward);
 			break;
 		}
@@ -590,6 +653,7 @@ public:
 				tmp2 = execution_end.rs2_value;
 			execution_end.result = (tmp1 < tmp2) ?
 				(execution_end.jump_PC) : (execution_end.no_jump_PC);
+			execution_end.Real_PC = execution_end.result;
 			Initial(EX_Forward);
 			break;
 		}
@@ -599,6 +663,7 @@ public:
 				tmp2 = execution_end.rs2_value;
 			execution_end.result = (tmp1 >= tmp2) ?
 				(execution_end.jump_PC) : (execution_end.no_jump_PC);
+			execution_end.Real_PC = execution_end.result;
 			Initial(EX_Forward);
 			break;
 
@@ -635,7 +700,6 @@ public:
 		case JALR:
 		{
 			execution_end.result = execution_end.cur_PC + 4;
-			//EX_Forward.assignment(execution_end);
 			Initial(EX_Forward);
 			PC = ((execution_end.rs1_value + execution_end.imm) >> 1 << 1);
 			break;
@@ -728,7 +792,6 @@ public:
 
 };
 //-------------------------------     Decode     过程------------------------**
-
 class Instruction_Decode
 {
 public:
@@ -766,7 +829,6 @@ public:
 	}
 
 };
-
 //-------------------------------      Fetch     过程------------------------**
 class Instruction_Fetch
 {
@@ -1078,9 +1140,9 @@ public:
 			//分支预测
 			fetch_end.jump_PC = fetch_end.cur_PC + fetch_end.imm;
 			fetch_end.no_jump_PC = fetch_end.cur_PC + 4;
-			//PC = Guess(fetch_end.jump_PC, fetch_end.no_jump_PC);
-			//fetch_end.Pred_PC = PC;
-			wait_time = 4;
+			PC = Guess(fetch_end.jump_PC, fetch_end.no_jump_PC, fetch_end.cur_PC);
+			fetch_end.Pred_PC = PC;
+
 			switch (func3)
 			{
 			case 0:fetch_end.inst_name = BEQ; break;
