@@ -33,7 +33,7 @@ int main()
 		strcpy(Name[36], "AND"); strcpy(Name[37], "ZERO");
 	}
 
-	freopen("naive.data", "r", stdin);
+	freopen("pi.data", "r", stdin);
 	im.readin();
 	int cnt = 1;
 	//交接结构
@@ -49,61 +49,60 @@ int main()
 		ma_end = my_ma.MA(ex_end, im);
 		reset(ex_end);
 
-		ex_end = my_ex.Ex(id_end, RD);
-
-		//FeedBack(if_jump, ex_end, id_end, if_end);
-
+		ex_end = my_ex.Ex(id_end);
 		reset(id_end);
 
-		id_end = my_dec.Decode(if_end, RD);
+		id_end = my_dec.Decode(if_end);
 		reset(if_end);
 
 		if (wait_time <= 0)
 		{
-			if_end = my_fet.fetcher(im, RD);
+			if_end = my_fet.fetcher(im);
 		}
 		if (wait_time > 0)wait_time--;
 		else wait_time = 0;
 
-		update(ex_end, RD);
-		RD.Check_And_Renew(if_end);
+		Initial(EX_exRenew);
+		Initial(EX_maRenew);
+		update_changes();
+		Initial(EX_Forward);
+		Initial(MA_Forward);
+		
+		//FeedBack(if_jump, ex_end, id_end, if_end);
 
-		cout << cnt << " " << PC << " ";
+		//cout << cnt << " " << PC << " ";
+		//cout << endl;
+		cnt++;
+		//cout <<"EX: " <<EX_exRenew.cur_RD.rd << " " << EX_exRenew.cur_RD.rd_value << '\n';
+		//cout << "MA: "<<EX_maRenew.cur_RD.rd << " " << EX_maRenew.cur_RD.rd_value << '\n';
 		//cout << cnt << "*******" <<"PC: "<<PC<< endl;
 		//cout << "rd:  " << RD.cur_RD.rd << "    rd_value:   " << RD.cur_RD.rd_value << endl;
 		//cout << "Name: "<<Name[if_end.inst_name]<< "   " << "cur_PC:"<<if_end.cur_PC << "   ***IF "<<endl;
-
 		//cout << "Name: " << Name[id_end.inst_name] << "   " << "cur_PC:" << id_end.cur_PC << "   ***ID " << endl;
-
 		//cout << "Name: " << Name[ex_end.inst_name] << "   " << "cur_PC:" << ex_end.cur_PC << "   ***EX " << endl;
-
 		//cout << "Name: " << Name[ma_end.inst_name] << "   " << "cur_PC:" << ma_end.cur_PC << "   ***MA " << endl;
 
 
 
-		for (int i = 1; i <= 31; ++i)
-			cout << reg.Register[i] << " ";
-		//cout << endl;
+		//for (int i = 1; i <= 31; ++i)
+		//	cout << reg.Register[i] << " ";
 
 
 
-		if (if_end.inst_name != ZERO)cout << Name[if_end.inst_name];
+		/*if (if_end.inst_name != ZERO)cout << Name[if_end.inst_name];
 		else if (id_end.inst_name != ZERO)cout << Name[id_end.inst_name];
 		else if (ex_end.inst_name != ZERO)cout << Name[ex_end.inst_name];
 		else if (ma_end.inst_name != ZERO)
 		{
 			cout << Name[ma_end.inst_name]; cnt++;
-	    }
-		cout << "\n";
+	    }*/
+		//cout << "\n";
 
 		if (!flag)
 		{
 			cout << (reg.Register[10] & 255u);
 			break;
 		}
-		
-
-		
 	}
 
 	return 0;

@@ -13,9 +13,7 @@ enum Inst_Name {
 	ANDI, SLLI, SRLI, SRAI, ADD, SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND, ZERO
 };
 
-
 //hopefully my file will be accepted 
-
 
 //------------------------数据传输结构体：pass_oj-------------------**
 
@@ -37,13 +35,11 @@ public:
 	unsigned int instruction = 0u;
 	int result = 0u;
 	int tmp = 0u;
+	int cur_PC = 0u;
 	int Pred_PC = 0u;
 	int Real_PC = 0u;
 	int jump_PC = 0u;
 	int no_jump_PC = 0u;
-	int cur_PC = 0u;
-	bool checked_rs1 = 0;
-	bool checked_rs2 = 0;
 
 	pass_oj() {};
 	~pass_oj() {};
@@ -68,8 +64,6 @@ public:
 		jump_PC = oj.jump_PC;
 		no_jump_PC = oj.no_jump_PC;
 		cur_PC = oj.cur_PC;
-		checked_rs1 = oj.checked_rs1;
-		checked_rs2 = oj.checked_rs2;
 		return *this;
 	}
 
@@ -101,14 +95,13 @@ void reset(pass_oj &cleaner)
 		cleaner.instruction = 0u;
 		cleaner.result = 0u;
 		cleaner.tmp = 0u;
+		cleaner.cur_PC = 0u;
 		cleaner.Pred_PC = 0u;
 		cleaner.Real_PC = 0u;
 		cleaner.jump_PC = 0u;
 		cleaner.no_jump_PC = 0u;
-		cleaner.cur_PC = 0u;
 	};
 	return;
-
 }
 
 
@@ -179,15 +172,14 @@ public:
 
 				}
 				Memery[pos] = ins;
-				cout << pos << " ";
-				cout << ((Memery[pos] >>7)&1) << ((Memery[pos] >> 6) & 1) << ((Memery[pos] >> 5) & 1) << ((Memery[pos] >> 4) & 1) << ((Memery[pos] >> 3) & 1)
-				<< ((Memery[pos] >> 2) & 1) << ((Memery[pos] >> 1) & 1)<< ((Memery[pos] ) & 1) << endl;
+				//cout << pos << " ";
+				//cout << ((Memery[pos] >>7)&1) << ((Memery[pos] >> 6) & 1) << ((Memery[pos] >> 5) & 1) << ((Memery[pos] >> 4) & 1) << ((Memery[pos] >> 3) & 1)
+				//<< ((Memery[pos] >> 2) & 1) << ((Memery[pos] >> 1) & 1)<< ((Memery[pos] ) & 1) << endl;
 				pos++;
 				counter++;
 			}
 			memset(read, 0, sizeof(read));
 		}
-		//cout << "4204 " << (int)Memery[4204] << endl;
 		return;
 
 	}
@@ -195,12 +187,13 @@ public:
 	{
 		Memery = new uint8_t[0x400000];
 		memset(Memery, 0, 0x400000 * sizeof(uint8_t));
-		//cout << "size " <<  sizeof(Memery) << endl;
-		//cout << "4204 " << (int)Memery[4204] << endl;
 	}
 	~InterMem() {};
 };
+int wait_time = 0;
 
+
+//------------------------通知信息-------------------------**
 class RD_Renew
 {
 public:
@@ -217,44 +210,85 @@ public:
 		int rd_value = 0;
 	};
 	RD_Forward cur_RD;
-
-	void Check_And_Renew(pass_oj &id_end)
+	RD_Renew operator=(const RD_Renew &forward)
 	{
-		if (id_end.rs1 == cur_RD.rd&&id_end.rs1 != 0)
+		cur_RD.rd = forward.cur_RD.rd;
+		cur_RD.rd_value = forward.cur_RD.rd_value;
+		return *this;
+	}
+	//用pass_oj进行赋值
+	void assignment(pass_oj &ex_end)
+	{
+		if (ex_end.rd != 0)
 		{
-			id_end.rs1_value = cur_RD.rd_value;
-			id_end.checked_rs1 = 1;
+			cur_RD.rd = ex_end.rd;
+			cur_RD.rd_value = ex_end.result;
 		}
-		if (id_end.rs2 == cur_RD.rd&&id_end.rs2 != 0)
+		else
 		{
-			id_end.rs2_value = cur_RD.rd_value;
-			id_end.checked_rs2 = 1;
+			cur_RD.rd = 0;
+			cur_RD.rd_value = 0;
 		}
+		
 		return;
 	}
-
-	
-
 };
-RD_Renew RD;
-void update(pass_oj &ex_end,RD_Renew &RD)
+
+RD_Renew EX_Forward;
+RD_Renew MA_Forward;
+RD_Renew EX_exRenew;
+RD_Renew EX_maRenew;
+
+//将通知信息归零
+void Initial(RD_Renew &forward)
 {
-	switch (ex_end.inst_name)
-	{
-	case LB:case LH:case LW:case LBU:case LHU:break;
-	default:
-		if (ex_end.rd != 0)
-	{
-		RD.cur_RD.rd = ex_end.rd;
-		RD.cur_RD.rd_value = ex_end.result;
-	}
-		break;
-	}
-	
+	forward.cur_RD.rd = 0;
+	forward.cur_RD.rd_value = 0;
 	return;
 }
+//Ex从诸多信息中进行选择
+void Check_And_Renew(pass_oj &id_end)
+{ 
+	if (EX_exRenew.cur_RD.rd != EX_maRenew.cur_RD.rd)
+	{
+		
+		if (EX_exRenew.cur_RD.rd != 0 && EX_exRenew.cur_RD.rd == id_end.rs1)
+		{
+			id_end.rs1_value = EX_exRenew.cur_RD.rd_value;
+		}
+		if (EX_exRenew.cur_RD.rd != 0 && EX_exRenew.cur_RD.rd == id_end.rs2)
+		{
+			id_end.rs2_value = EX_exRenew.cur_RD.rd_value;
+		}
 
-int wait_time = 0;
+		if (EX_maRenew.cur_RD.rd != 0 && EX_maRenew.cur_RD.rd == id_end.rs1)
+		{
+			id_end.rs1_value = EX_maRenew.cur_RD.rd_value;
+		}
+		if (EX_maRenew.cur_RD.rd != 0 && EX_maRenew.cur_RD.rd == id_end.rs2)
+		{
+			id_end.rs2_value = EX_maRenew.cur_RD.rd_value;
+		}
+	}
+	else if (EX_exRenew.cur_RD.rd != 0 && EX_exRenew.cur_RD.rd == EX_maRenew.cur_RD.rd)
+	{
+		if (EX_exRenew.cur_RD.rd != 0 && EX_exRenew.cur_RD.rd == id_end.rs1)
+		{
+			id_end.rs1_value = EX_exRenew.cur_RD.rd_value;
+		}
+		else if (EX_exRenew.cur_RD.rd != 0 && EX_exRenew.cur_RD.rd == id_end.rs2)
+		{
+			id_end.rs2_value = EX_exRenew.cur_RD.rd_value;
+		}
+	}
+	return;
+}
+void update_changes()
+{
+	EX_exRenew = EX_Forward;
+	EX_maRenew = MA_Forward;
+	return;
+}
 
 //----------------------------分支预测-------------------------**
 int if_jump = 1;
@@ -341,12 +375,6 @@ public:
 			{
 				reg.Register[WB_end.rd] = WB_end.result;
 			}
-			
-			if (RD.cur_RD.rd == WB_end.rd)
-			{
-				RD.cur_RD.rd = 0;
-				RD.cur_RD.rd_value = 0;
-			}
 			break;
 		}
 		default:break;
@@ -375,6 +403,7 @@ public:
 				if (MA_end.tmp != 0x30004)
 					im.Memery[MA_end.tmp] = (MA_end.result & 255);
 				else flag = 0;
+				Initial(MA_Forward);
 				break;
 			}
 			case SH:
@@ -383,7 +412,7 @@ public:
 				im.Memery[MA_end.tmp] = (tmp1 & 255);
 				tmp1 >>= 8;
 				im.Memery[MA_end.tmp + 1] = (tmp1 & 255);
-				
+				Initial(MA_Forward);
 				
 				break;
 			}
@@ -397,38 +426,51 @@ public:
 				im.Memery[MA_end.tmp + 2] = (tmp1 & 255);
 				tmp1 >>= 8;
 				im.Memery[MA_end.tmp + 3] = (tmp1 & 255);
-
+				Initial(MA_Forward);
 				break;
 			}
 			case LB:
 			{
 				MA_end.result = (int)im.Memery[MA_end.tmp];
+				MA_Forward.assignment(MA_end);
 				break;
 			}
 			case LH:
 			{
 				MA_end.result = (int)((im.Memery[MA_end.tmp + 1] << 8) + im.Memery[MA_end.tmp]);
+				MA_Forward.assignment(MA_end);
 				break;
 			}
 			case LW:
 			{
 				MA_end.result = (int)((im.Memery[MA_end.tmp + 3] << 24) + (im.Memery[MA_end.tmp + 2] << 16) +
 					(im.Memery[MA_end.tmp + 1] << 8) + im.Memery[MA_end.tmp]);
+				MA_Forward.assignment(MA_end);
 				break;
 			}
 			case LBU:
 			{
-
 				MA_end.result =((unsigned int)im.Memery[MA_end.tmp]);
+				MA_Forward.assignment(MA_end);
 				break;
 
 			}
 			case LHU:
 			{
 				MA_end.result = ((unsigned int)((im.Memery[MA_end.tmp + 1] << 8) + im.Memery[MA_end.tmp]));
+				MA_Forward.assignment(MA_end);
 				break;
 			}
-			default: break;
+			case BEQ:case BNE:case BLT:case BGE:case BLTU:case BGEU:case JALR:case AUIPC:
+			{
+				Initial(MA_Forward);
+				break;
+			}
+			default: 
+			{
+				MA_Forward.assignment(MA_end);
+				break;
+			}
 		}
 			return MA_end;
 	}
@@ -442,75 +484,66 @@ public:
 	Execution() {};
 	~Execution() {};
 
-	pass_oj Ex(pass_oj execution_end, RD_Renew &RD)
+	pass_oj Ex(pass_oj execution_end)
 	{
-		RD.Check_And_Renew(execution_end);
+		Check_And_Renew(execution_end);
 		switch (execution_end.inst_name)
 		{
 		//R_Type 10*****
 		case ADD:
 		{
 			execution_end.result = execution_end.rs1_value + execution_end.rs2_value;
-
-			
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case SUB:
 		{
 			execution_end.result = execution_end.rs1_value - execution_end.rs2_value;
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case SLT:
 		{
 			execution_end.result = (execution_end.rs1_value < execution_end.rs2_value) ? 1 : 0;
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case SLTU:
 		{
 			execution_end.result = ((uint32_t)execution_end.rs1_value < (uint32_t)execution_end.rs2_value) ? 1 : 0;
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case XOR:
 		{
 			execution_end.result = (execution_end.rs1_value ^ execution_end.rs2_value);
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case OR:
 		{
 			execution_end.result = (execution_end.rs1_value | execution_end.rs2_value);
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case AND:
 		{
 			execution_end.result = (execution_end.rs1_value & execution_end.rs2_value);
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case SLL:
 		{
 			execution_end.tmp = (execution_end.rs2_value & 31u);
 			execution_end.result = (execution_end.rs1_value << execution_end.tmp);
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case SRL:
 		{
 			execution_end.tmp = (execution_end.rs2_value & 31u);
 			execution_end.result = ((uint32_t)execution_end.rs1_value >> execution_end.tmp);
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 
 			break;
 		}
@@ -518,8 +551,7 @@ public:
 		{
 			execution_end.tmp = (execution_end.rs2_value & 31u);
 			execution_end.result = SignExtended((execution_end.rs1_value >> execution_end.tmp), 32 - execution_end.tmp);
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 
@@ -528,34 +560,28 @@ public:
 		{
 			execution_end.result = (execution_end.rs1_value == execution_end.rs2_value) ?
 				(execution_end.jump_PC) : (execution_end.no_jump_PC);
-			//execution_end.Real_PC = execution_end.result;
-			
-			//PC = execution_end.Real_PC;
-
+			Initial(EX_Forward);
 			break;
 		}
 		case BNE:
 		{
 			execution_end.result = (execution_end.rs1_value == execution_end.rs2_value) ?
 				(execution_end.no_jump_PC) : (execution_end.jump_PC);
-			
-			//PC = execution_end.Real_PC;
+			Initial(EX_Forward);
 			break;
 		}
 		case BLT:
 		{
 			execution_end.result = (execution_end.rs1_value < execution_end.rs2_value) ? 
 				(execution_end.jump_PC) : (execution_end.no_jump_PC);
-			
-			//PC = execution_end.Real_PC;
+			Initial(EX_Forward);
 			break;
 		}
 		case BGE:
 		{
 			execution_end.result = (execution_end.rs1_value >= execution_end.rs2_value) ? 
 				(execution_end.jump_PC) : (execution_end.no_jump_PC);
-			
-			//PC = execution_end.Real_PC;
+			Initial(EX_Forward);
 			break;
 		}
 		case BLTU:
@@ -564,8 +590,7 @@ public:
 				tmp2 = execution_end.rs2_value;
 			execution_end.result = (tmp1 < tmp2) ?
 				(execution_end.jump_PC) : (execution_end.no_jump_PC);
-			
-			//PC = execution_end.Real_PC;
+			Initial(EX_Forward);
 			break;
 		}
 		case BGEU:
@@ -574,8 +599,7 @@ public:
 				tmp2 = execution_end.rs2_value;
 			execution_end.result = (tmp1 >= tmp2) ?
 				(execution_end.jump_PC) : (execution_end.no_jump_PC);
-
-			//PC = execution_end.Real_PC;
+			Initial(EX_Forward);
 			break;
 
 		}
@@ -583,31 +607,36 @@ public:
 		{
 			execution_end.tmp = execution_end.rs1_value + execution_end.imm;
 			execution_end.result = (execution_end.rs2_value & 255);
+			Initial(EX_Forward);
 			break;
 		}
 		case SH:
 		{
 			execution_end.tmp = execution_end.rs1_value + execution_end.imm;
 			execution_end.result = (execution_end.rs2_value & 0xffff);
+			Initial(EX_Forward);
 			break;
 		}
 		case SW:
 		{
 			execution_end.tmp = execution_end.rs1_value + execution_end.imm;
 			execution_end.result = (execution_end.rs2_value );
-
+			Initial(EX_Forward);
 			break;
 		}
 		//I_Type 16
 		case JAL:
 		{
 			execution_end.result = execution_end.cur_PC + 4;
+			EX_Forward.assignment(execution_end);
 
 			break;
 		}
 		case JALR:
 		{
 			execution_end.result = execution_end.cur_PC + 4;
+			//EX_Forward.assignment(execution_end);
+			Initial(EX_Forward);
 			PC = ((execution_end.rs1_value + execution_end.imm) >> 1 << 1);
 			break;
 		}
@@ -615,78 +644,69 @@ public:
 		{
 			if (execution_end.rd != 0)
 				execution_end.tmp = execution_end.rs1_value + execution_end.imm;
+			Initial(EX_Forward);
 			break;
 		}
 		case ADDI:
 		{
 			execution_end.result = (execution_end.rs1_value +execution_end.imm);
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case SLTI:
 		{
 			execution_end.result = (execution_end.rs1_value < execution_end.imm)?1:0;
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case SLTIU:
 		{
 			execution_end.result = ((uint32_t)execution_end.rs1_value < (uint32_t)execution_end.imm) ? 1 : 0;
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case XORI:
 		{
 			execution_end.result = (execution_end.rs1_value & execution_end.imm);
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case ORI:
 		{
 			execution_end.result = (execution_end.rs1_value | execution_end.imm);
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case ANDI:
 		{
 			execution_end.result = (execution_end.rs1_value & execution_end.imm);
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case SLLI:
 		{
 			execution_end.result = (execution_end.rs1_value << (execution_end.shamt&31u));
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case SRLI:
 		{
 			uint32_t tmp = (uint32_t)execution_end.rs1_value;
 			execution_end.result = (tmp >> (execution_end.shamt & 31u));
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case SRAI:
 		{
 			execution_end.result = SignExtended(execution_end.rs1_value >> (execution_end.shamt & 31u), 32-(execution_end.shamt & 31u));
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		//U_Type 2******
 		case LUI:
 		{
 			execution_end.result = (execution_end.imm );
-			//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+			EX_Forward.assignment(execution_end);
 			break;
 		}
 		case AUIPC:
@@ -695,18 +715,18 @@ public:
 			{
 				PC = execution_end.cur_PC + (execution_end.imm << 12);
 				execution_end.result = PC;
-
-				//RD.cur_RD.rd = execution_end.rd;
-			//RD.cur_RD.rd_value = execution_end.result;
+				Initial(EX_Forward);
+				//EX_Forward.assignment(execution_end);
 			}
 
 		}
 		}
+
+		
 		return execution_end;
 	}
 
 };
-
 //-------------------------------     Decode     过程------------------------**
 
 class Instruction_Decode
@@ -717,7 +737,7 @@ public:
 
 	unsigned int instruction = 0;
 	
-	pass_oj Decode(pass_oj decode_end, RD_Renew &RD)
+	pass_oj Decode(pass_oj decode_end)
 	{
 		if (decode_end.inst_name == ZERO)
 		{
@@ -731,25 +751,17 @@ public:
 		case BEQ:case BNE:case BLT:case BGE:
 		case BLTU:case BGEU:
 		case SB:case SH:case SW:
-			if (!decode_end.checked_rs1)
-			{
-				decode_end.rs1_value = reg.Register[decode_end.rs1];
-			}
-
-			if(!decode_end.checked_rs2)
+			decode_end.rs1_value = reg.Register[decode_end.rs1];
 			decode_end.rs2_value = reg.Register[decode_end.rs2];
 			break;
 
 		case JALR:case LB:case LH:case LW:case LBU:case LHU:
 		case ADDI:case SLTI:case SLTIU:case XORI:case ORI:case ANDI:
 		case SLLI:case SRLI:case SRAI:
-			if(!decode_end.checked_rs1)
 				decode_end.rs1_value = reg.Register[decode_end.rs1];
-			
 			break;
 		default :break;
 		}
-		RD.Check_And_Renew(decode_end);
 		return decode_end;
 	}
 
@@ -844,7 +856,7 @@ public:
 			fetch_end.rs1 = rs1;
 			fetch_end.imm = imm;
 
-			wait_time = 4;
+			wait_time = 2;
 
 			switch (func3)
 			{
@@ -974,7 +986,6 @@ public:
 			fetch_end.imm = imm;
 			fetch_end.inst_name = JAL;
 
-			wait_time = 4;
 			PC = fetch_end.cur_PC + fetch_end.imm;
 		}
 		else
@@ -1102,9 +1113,8 @@ public:
 		return fetch_end;
 	};
 
-	pass_oj fetcher(InterMem &im, RD_Renew &RD)
+	pass_oj fetcher(InterMem &im)
 	{
-		//wait_time = 4;
 		pass_oj fetch_end;
 		Fetch(im);
 		fetch_end.opcode = (instruction & 127);
@@ -1116,7 +1126,6 @@ public:
 		case 99:case 35:fetch_end = S_(); break;
 		case 55:case 23:fetch_end = U_(); break;
 		}	
-		RD.Check_And_Renew(fetch_end);
 		return fetch_end;
 	}
 };
