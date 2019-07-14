@@ -11,7 +11,7 @@ Write_Back my_wb;
 int main()
 {
 	
-	freopen("lvalue2.data", "r", stdin);
+	//freopen("lvalue2.data", "r", stdin);
 	im.readin();
 	int cnt = 1;
 	pass_oj if_end, id_end, ex_end, ma_end;
@@ -54,7 +54,7 @@ int main()
 		}
 	}
 	
-	if ((Pred_False + Pred_True) != 0)cout << "\n" << ((double)Pred_True / (Pred_False + Pred_True) * 100) << "%" << "\n";
-	cout << Pred_True << " " << Pred_False+Pred_True;
+	//if ((Pred_False + Pred_True) != 0)cout << "\n" << ((double)Pred_True / (Pred_False + Pred_True) * 100) << "%" << "\n";
+	//cout << Pred_True << " " << Pred_False+Pred_True;
 	return 0;
 }
